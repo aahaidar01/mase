@@ -33,6 +33,8 @@ from typing import Dict, Any, Tuple, Optional
 import torch
 import torch.nn as nn
 
+import torch.fx as fx
+
 try:
     from torch.fx import Node
 except ImportError:
@@ -41,6 +43,41 @@ except ImportError:
 from .triton_fused_add_rmsnorm import FusedAddRMSNormModule
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Custom tracer that keeps RMSNorm as a leaf module (not inlined)
+# ---------------------------------------------------------------------------
+class _RMSNormLeafTracer(fx.Tracer):
+    """
+    A custom FX tracer that treats RMSNorm variants as leaf modules.
+
+    Standard torch.fx.symbolic_trace inlines simple modules like LlamaRMSNorm
+    into primitive ops (to/pow/mean/rsqrt/mul), destroying the call_module
+    nodes our pattern matcher needs.  This tracer prevents that.
+
+    When using MASE's MaseGraph with HuggingFace models, this is not needed
+    (HFTracer already treats RMSNorm as a leaf).  This tracer is provided
+    for standalone usage outside of MaseGraph.
+    """
+
+    def is_leaf_module(self, m: nn.Module, module_qualified_name: str) -> bool:
+        if _is_rmsnorm_module(m):
+            return True
+        return super().is_leaf_module(m, module_qualified_name)
+
+
+def trace_with_rmsnorm_leaf(model: nn.Module, concrete_args=None) -> fx.GraphModule:
+    """
+    Trace a model using the custom tracer that preserves RMSNorm as leaf nodes.
+
+    Usage:
+        graph_module = trace_with_rmsnorm_leaf(model)
+        # Now graph_module.graph has call_module nodes for RMSNorm
+    """
+    tracer = _RMSNormLeafTracer()
+    graph = tracer.trace(model, concrete_args=concrete_args)
+    return fx.GraphModule(model, graph)
 
 
 # ---------------------------------------------------------------------------
@@ -199,6 +236,9 @@ def _replace_pair(
     )
 
     # Copy the learned weight from the original RMSNorm
+    # and move the fused module to the same device as the original
+    device = orig_rmsnorm.weight.device
+    fused_mod = fused_mod.to(device)
     with torch.no_grad():
         fused_mod.weight.copy_(orig_rmsnorm.weight)
 
@@ -226,24 +266,19 @@ def _replace_pair(
         )
 
     # The fused module returns (normed_out, residual_out) as a tuple.
-    # We need getitem nodes to unpack.
+    # We need getitem nodes to unpack — use operator.getitem directly
+    # so MASE's metadata passes recognise the nodes correctly.
+    import operator
+
     with fx_graph.inserting_after(fused_node):
         normed_getitem = fx_graph.call_function(
-            target=lambda tup, idx: tup[idx],
-            args=(fused_node, 0),
+            operator.getitem, (fused_node, 0)
         )
-        # Use operator.getitem for clean FX graph
-        import operator
-        normed_getitem.target = operator.getitem
-        normed_getitem.args = (fused_node, 0)
 
     with fx_graph.inserting_after(normed_getitem):
         residual_getitem = fx_graph.call_function(
-            target=lambda tup, idx: tup[idx],
-            args=(fused_node, 1),
+            operator.getitem, (fused_node, 1)
         )
-        residual_getitem.target = operator.getitem
-        residual_getitem.args = (fused_node, 1)
 
     # ---- 5. Rewire consumers ----
     # All consumers of the original rmsnorm_node now consume normed_getitem

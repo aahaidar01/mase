@@ -28,6 +28,7 @@ from .transforms import (
     logicnets_fusion_transform_pass,
     onnx_annotate_transform_pass,
     raise_granularity_transform_pass,
+    fused_rmsnorm_transform_pass,
 )
 
 from .interface import (
@@ -74,8 +75,10 @@ TRANSFORM_PASSES = [
     "quantize",
     "summarize_quantization",
     "prune",
-    "prune_detach_hook" "conv_bn_fusion",
+    "prune_detach_hook",
+    "conv_bn_fusion",
     "logicnets_fusion",
+    "fused_rmsnorm",
 ]
 
 INTERFACE_PASSES = [
@@ -118,6 +121,7 @@ PASSES = {
     "conv_bn_fusion": conv_bn_fusion_transform_pass,
     "logicnets_fusion": logicnets_fusion_transform_pass,
     "onnx_annotate": onnx_annotate_transform_pass,
+    "fused_rmsnorm": fused_rmsnorm_transform_pass,
 }
 
 if check_dependencies("runtime_analysis_pass"):

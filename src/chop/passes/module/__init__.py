@@ -3,6 +3,7 @@ from .analysis.report import report_trainable_parameters_analysis_pass
 from .transforms import (
     quantize_module_transform_pass,
     attention_swap_transform_pass,
+    fused_rmsnorm_residual_transform_pass,
 )
 
 ANALYSIS_PASSES = [
@@ -13,6 +14,7 @@ ANALYSIS_PASSES = [
 TRANSFORM_PASSES = [
     "quantize_module_transform_pass",
     "attention_swap_transform_pass",
+    "fused_rmsnorm_residual_transform_pass",
 ]
 
 
@@ -22,4 +24,5 @@ PASSES = {
     # transform
     "quantize": quantize_module_transform_pass,
     "attention_swap": attention_swap_transform_pass,
+    "fused_rmsnorm_residual": fused_rmsnorm_residual_transform_pass,
 }

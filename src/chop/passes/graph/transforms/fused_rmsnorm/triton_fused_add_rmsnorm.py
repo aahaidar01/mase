@@ -191,39 +191,20 @@ def _fused_add_rmsnorm_bwd_kernel(
     # ---- RMSNorm backward ----
     w_eff = W + offset
 
-    if CASTING_MODE == 2:  # gemma
-        R_fp32 = R.to(tl.float32)
-        dNormed_fp32 = dNormed.to(tl.float32)
-        w_eff_fp32 = w_eff.to(tl.float32)
+    # All casting modes compute the backward in fp32 for numerical stability.
+    # The forward kernel differentiates casting behaviour; the backward always
+    # upcasts to fp32 because the reduction (dot product) and rstd^3 term are
+    # highly sensitive to rounding in half-precision dtypes.
+    R_fp32 = R.to(tl.float32)
+    dNormed_fp32 = dNormed.to(tl.float32)
+    w_eff_fp32 = w_eff.to(tl.float32)
 
-        m = dNormed_fp32 * w_eff_fp32
-        dot_mr = tl.sum(m * R_fp32, axis=0)
-        dR = (rstd * m) - (rstd * rstd * rstd / n_cols) * dot_mr * R_fp32
-        dR = dR.to(R.dtype)
+    m = dNormed_fp32 * w_eff_fp32
+    dot_mr = tl.sum(m * R_fp32, axis=0)
+    dR = (rstd * m) - (rstd * rstd * rstd / n_cols) * dot_mr * R_fp32
+    dR = dR.to(R.dtype)
 
-        dW_partial = (dNormed_fp32 * R_fp32 * rstd).to(R.dtype)
-    elif CASTING_MODE == 1:  # llama
-        R_fp32 = R.to(tl.float32)
-        dNormed_fp32 = dNormed.to(tl.float32)
-        w_eff_fp32 = w_eff.to(tl.float32)
-
-        m = dNormed_fp32 * w_eff_fp32
-        dot_mr = tl.sum(m * R_fp32, axis=0)
-        dR = (rstd * m) - (rstd * rstd * rstd / n_cols) * dot_mr * R_fp32
-        dR = dR.to(R.dtype)
-
-        dW_partial = (dNormed_fp32 * R_fp32 * rstd).to(R.dtype)
-    else:  # none
-        R_fp32 = R.to(tl.float32)
-        dNormed_fp32 = dNormed.to(tl.float32)
-        w_eff_fp32 = w_eff.to(tl.float32)
-
-        m = dNormed_fp32 * w_eff_fp32
-        dot_mr = tl.sum(m * R_fp32, axis=0)
-        dR = (rstd * m) - (rstd * rstd * rstd / n_cols) * dot_mr * R_fp32
-        dR = dR.to(R.dtype)
-
-        dW_partial = (dNormed_fp32 * R_fp32 * rstd).to(R.dtype)
+    dW_partial = (dNormed_fp32 * R_fp32 * rstd).to(R.dtype)
 
     # ---- Combine: gradient through the addition ----
     total_grad = dR + dResidual_downstream
