@@ -5,7 +5,7 @@
 ## 1. Project Overview
 
 **Part:** 2 of 3 in the ADLS kernel-fusion-aware optimisation pipeline for MASE  
-**Author:** Dorijan Donaj Magašić (dd925)  
+**Author:** Dorijan Donaj Magašić (dd925), Yash Agarwal
 **Course:** Advanced Deep Learning Systems 2024/25, Imperial College London  
 **Framework:** MASE (DeepWok/mase) — PyTorch FX-based ML compiler  
 **Repo:** https://github.com/aahaidar01/mase (branch: `feature/fused-rmsnorm-residual`)
