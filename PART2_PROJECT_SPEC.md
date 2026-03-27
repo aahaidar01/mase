@@ -146,7 +146,7 @@ Forward+backward average memory reduction: 25.8%
   - `passes/module/__init__.py` — added fused_rmsnorm_residual_transform_pass
   - `passes/module/transforms/__init__.py` — added import from fused_ops
 
-### Phase 5: End-to-End Validation
+### Phase 5: End-to-End Validation (Inference)
 
 **Step 13: Llama-2-7B standalone (HPC, L40S)**
 
@@ -179,14 +179,40 @@ Run by Dorian on dd925 HPC account:
 
 **MODULE PASS: ALL TESTS PASSED**
 
-### Phase 6: GitHub Push + Integration
+### Phase 6: Training Validation (HPC, L40S)
 
-**Step 15: Pushed to GitHub**
+**Step 15: Training loop tests**
+
+Verified the fused kernel works correctly during training, not just inference:
+
+| Test | What it proves | Result |
+|------|---------------|--------|
+| **Gradient flow** | All 21 parameters receive non-zero gradients, including all 4 RMSNorm weights | ✅ PASS |
+| **Weight updates** | Optimizer.step() modifies all 12 weights including fused RMSNorm weights | ✅ PASS |
+| **Overfitting** | Fused model memorises a single batch (loss 4.60 → 0.001, 100% reduction in 50 steps) — optimisation landscape is not broken | ✅ PASS |
+| **Fused vs unfused training** | Two identical models (same init, same data) trained for 20 steps — loss trajectories match with max difference 9.54e-07. Final losses identical (0.3801) | ✅ PASS |
+
+Key result from fused vs unfused comparison:
+```
+Step   Unfused Loss     Fused Loss       Diff
+0      6.946591         6.946591         0.00e+00
+1      6.097987         6.097987         0.00e+00
+4      4.376801         4.376801         0.00e+00
+19     0.380118         0.380118         5.96e-08
+```
+
+The fused kernel is numerically transparent during training — it produces the same optimisation trajectory as unfused PyTorch.
+
+**TRAINING TESTS: ALL PASSED**
+
+### Phase 7: GitHub Push + Integration
+
+**Step 16: Pushed to GitHub**
 - Branch: `feature/fused-rmsnorm-residual` on `github.com/aahaidar01/mase`
 - 5 new files, 4 modified `__init__.py` files
 - All committed and pushed
 
-**Step 16: L40S plots generated**
+**Step 17: L40S plots generated**
 - Regenerated all benchmark plots using L40S data (not T4/L4)
 - Log-log scaling plot cropped to ≥4M elements to show relevant operating range
 - Three plots: latency+speedup (BF16), log-log scaling, all-config speedup (BF16+FP16+FP32)
@@ -219,6 +245,7 @@ Run by Dorian on dd925 HPC account:
 | `test_module_pass.py` | Module-level pass test (tiny + casting + 7B) |
 | `test_mase_transform.py` | Graph-level pass test |
 | `test_7b_model.py` | Llama-2-7B end-to-end standalone |
+| `test_training.py` | Training validation (gradient flow, weight updates, overfitting, fused vs unfused) |
 | `benchmark_3way.py` | 3-way latency comparison |
 | `benchmark_memory.py` | Peak memory benchmark |
 | `run_all.py` | Orchestrator for all tests |
@@ -227,6 +254,7 @@ Run by Dorian on dd925 HPC account:
 | `run_mase_transform.pbs` | PBS: graph-level pass |
 | `run_module_pass.pbs` | PBS: module-level pass |
 | `run_7b.pbs` | PBS: Llama-2-7B standalone |
+| `run_training.pbs` | PBS: training validation |
 
 ### HPC outputs (`hpc_outputs/`)
 
@@ -234,9 +262,10 @@ Run by Dorian on dd925 HPC account:
 |------|----------|
 | `fused_rmsnorm_tests.out` | 180/180 kernel tests + 3-way benchmark PASS |
 | `fused_rmsnorm_bench1.out` | Full latency + memory + 3-way benchmarks (L40S) |
-| `fused_rmsnorm_mase1.out` | Graph-level pass tests (manual PASS, HF SKIPPED) |
+| `fused_rmsnorm_mase.out` | Graph-level pass tests (manual PASS, HF SKIPPED) |
 | `fused_rmsnorm_7b.out` | Llama-2-7B end-to-end PASS (L40S) |
 | `fused_rmsnorm_module.out` | Module pass ALL TESTS PASSED (L40S) |
+| `fused_rmsnorm_training.out` | Training validation ALL PASSED (L40S) |
 
 ---
 
@@ -362,7 +391,10 @@ ssh dd925@login.cx3.hpc.imperial.ac.uk
 eval "$(~/miniforge3/bin/conda shell.bash hook)"
 conda activate triton_env
 cd ~/ADLS_Project/hpc_run
-qsub run_module_pass.pbs      # or any other PBS script
+qsub run_training.pbs          # training validation
+qsub run_module_pass.pbs       # module pass (inference)
+qsub run_tests.pbs             # 180 kernel tests
+qsub run_benchmarks_only.pbs   # latency + memory benchmarks
 qstat -u dd925                 # check status
 ```
 
@@ -385,13 +417,20 @@ qstat -u dd925                 # check status
 - **25.8% average** during forward+backward
 - Saving = exactly one (B,T,D) tensor eliminated per site
 
-### Llama-2-7B End-to-End (L40S)
+### Llama-2-7B End-to-End Inference (L40S)
 - 32/32 layers fused automatically
 - Relative error: 0.30% (well within 1% threshold)
 - Cosine similarity: 1.000000
 - Top-5 predictions: exact match
 - Model-level speedup: 1.03× (modest — add+RMSNorm is <5% of forward time)
 - Principal benefit: memory pressure reduction enabling larger batch sizes
+
+### Training Validation (L40S)
+- All parameters receive gradients including fused RMSNorm weights ✅
+- Optimizer updates all weights correctly ✅
+- Fused model overfits single batch: loss 4.60 → 0.001 (100% reduction) ✅
+- Fused vs unfused training trajectories match within 9.54e-07 over 20 steps ✅
+- **Fused kernel is numerically transparent during training**
 
 ### MASE Integration
 - Graph pass: works on manual models (PASS), skips HF models (expected)
