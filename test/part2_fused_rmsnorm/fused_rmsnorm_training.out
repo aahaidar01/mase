@@ -1,0 +1,83 @@
+=== Environment ===
+Host: cx3-20-4
+NVIDIA L40S, 46068 MiB
+PyTorch: 2.7.1+cu118
+===================
+Device: NVIDIA L40S
+PyTorch: 2.7.1+cu118
+
+======================================================================
+TEST: Gradient Flow — All Parameters Receive Gradients
+======================================================================
+  Total parameters: 21
+  Parameters with nonzero grad: 21
+  Parameters with None grad: 0  PASS
+  Parameters with zero grad: 0  PASS
+
+  RMSNorm weight gradients:
+    model.layers.0.input_layernorm.weight: grad_norm=0.066735
+    model.layers.0.post_attention_layernorm.weight: grad_norm=0.035469
+    model.layers.1.input_layernorm.weight: grad_norm=0.046980
+    model.layers.1.post_attention_layernorm.weight: grad_norm=0.019781
+
+  Overall: PASS
+
+======================================================================
+TEST: Weight Updates — Optimizer Modifies All Weights
+======================================================================
+  Total parameters: 12
+  Weights updated: 12/12
+  Unchanged weights: 0  PASS
+
+  RMSNorm weight updates:
+    model.layers.0.input_layernorm.weight: max_diff=1.01e-02 (updated)
+    model.layers.0.post_attention_layernorm.weight: max_diff=1.01e-02 (updated)
+
+  Overall: PASS
+
+======================================================================
+TEST: Overfitting — Fused Model Memorises Single Batch
+======================================================================
+  Step   0: loss = 4.596849
+  Step   1: loss = 3.533994
+  Step   2: loss = 2.634547
+  Step  49: loss = 0.001422
+
+  Initial loss: 4.5968
+  Final loss:   0.0014
+  Reduction:    100.0%
+  Overall: PASS (threshold: >90% reduction)
+
+======================================================================
+TEST: Training Loop — Tiny Llama (fused vs unfused)
+======================================================================
+  Model: 1,692,928 params, 2 layers
+  Fused layers: 2
+
+  Training for 20 steps (batch=4, seq=32, lr=0.001)
+
+  Step   Unfused Loss     Fused Loss       Diff           Match
+  --------------------------------------------------------------------
+  0      6.946591         6.946591         0.00e+00       OK
+  1      6.097987         6.097987         0.00e+00       OK
+  2      5.503938         5.503938         0.00e+00       OK
+  3      4.956130         4.956129         9.54e-07       OK
+  4      4.376801         4.376801         0.00e+00       OK
+  19     0.380118         0.380118         5.96e-08       OK
+
+  Loss decreased (unfused): 6.9466 -> 0.3801 PASS
+  Loss decreased (fused):   6.9466 -> 0.3801 PASS
+  Final loss difference:    0.000000 (rel: 0.0000) PASS
+
+======================================================================
+TRAINING TESTS: ALL PASSED
+======================================================================
+
+====================================
+CPU Time used: 00:00:05
+CPU Percent: 7%
+Memory usage: 325920kb
+Approx Power usage: 0.0
+Walltime usage: 00:03:10
+
+====================================
