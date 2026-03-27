@@ -1,0 +1,53 @@
+=== Environment ===
+Host: cx3-20-5
+GPU: NVIDIA L40S, 46068 MiB
+PyTorch: 2.7.1+cu118
+===================
+Imported from local files
+Device: NVIDIA L40S
+PyTorch: 2.7.1+cu118
+
+======================================================================
+TEST: Transform Pass on Manual Add+RMSNorm Model
+======================================================================
+
+  --- AddThenNorm (1 block) ---
+    Before: 1 RMSNorm, 1 add nodes
+    After:  1 fused, 0 RMSNorm remaining, 1 FusedAddRMSNorm modules
+    Fused=1 (expected 1), max_err=2.38e-07  PASS
+
+  --- TwoLayerModel (2 blocks) ---
+    Before: 2 RMSNorm, 2 add nodes
+    After:  2 fused, 0 RMSNorm remaining, 2 FusedAddRMSNorm modules
+    Fused=2 (expected 2), max_err=2.38e-07  PASS
+
+  Overall: PASS
+
+======================================================================
+TEST: Transform Pass Casting Modes
+======================================================================
+  mode=llama   fused=1  max_err=4.77e-07  PASS
+  mode=gemma   fused=1  max_err=7.15e-07  PASS
+  mode=none    fused=1  max_err=4.77e-07  PASS
+
+  Overall: PASS
+
+======================================================================
+TEST: MASE Transform Pass on Tiny Llama
+======================================================================
+  Model: 1,692,928 params
+  Config: 2 layers, hidden=256
+  Reference top-5 tokens: [973, 499, 111, 924, 237]
+
+  Tracing model...
+  Custom tracer failed: 'Proxy' object does not support item assignment
+  Falling back to HFTracer...
+
+====================================
+CPU Time used: 00:00:08
+CPU Percent: 8%
+Memory usage: 624324kb
+Approx Power usage: 0.0
+Walltime usage: 00:01:44
+
+====================================

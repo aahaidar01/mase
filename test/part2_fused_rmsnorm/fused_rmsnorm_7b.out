@@ -1,0 +1,80 @@
+=== Environment ===
+Host: cx3-20-1
+GPU: NVIDIA L40S, 46068 MiB
+PyTorch: 2.7.1+cu118, CUDA: True
+Transformers: 5.3.0
+===================
+======================================================================
+FUSED ADD+RMSNORM: FULL TEST SUITE
+======================================================================
+Device: NVIDIA L40S
+PyTorch: 2.7.1+cu118
+CUDA available: True
+GPU memory: 44.4 GB
+Triton: 3.3.1
+
+######################################################################
+# RUNNING: Llama-2-7B End-to-End (Correctness + Latency)
+# File: test_7b_model.py
+######################################################################
+
+
+======================================================================
+  MODEL: meta-llama/Llama-2-7b-hf
+======================================================================
+  Loading meta-llama/Llama-2-7b-hf in torch.float16...
+  Loaded: 6.7B params
+  GPU memory: 12.6 GB
+  Decoder layers: 32
+
+  LATENCY (measured, CUDA events, 50 iters):
+    Unfused  (batch=1, seq=64): 24.08 ms
+    Unfused  (batch=1, seq=256): 31.33 ms
+    Unfused  (batch=4, seq=64): 30.82 ms
+
+  Patching 32 layers...
+  Patched 32 fusion sites
+    Fused    (batch=1, seq=64): 23.42 ms
+    Fused    (batch=1, seq=256): 30.51 ms
+    Fused    (batch=4, seq=64): 29.89 ms
+
+  CORRECTNESS:
+    Max abs err:       1.0547e-01
+    Mean abs err:      2.9793e-03
+    Logit range:       35.10
+    Relative error:    0.003005  PASS
+    Cosine similarity: 1.000000  PASS
+    Top-5 match:       PASS
+      ref:   [597, 29901, 8419, 29871, 584]
+      fused: [597, 29901, 8419, 29871, 584]
+    Overall:           PASS
+
+  SPEEDUP SUMMARY (measured):
+  Config                       Unfused      Fused     Saving    Speedup
+  -----------------------------------------------------------------
+  batch=1, seq=64              24.08ms    23.42ms    +0.66ms     1.028x
+  batch=1, seq=256             31.33ms    30.51ms    +0.82ms     1.027x
+  batch=4, seq=64              30.82ms    29.89ms    +0.93ms     1.031x
+
+======================================================================
+SUMMARY
+======================================================================
+  Llama-2-7B           PASSED
+======================================================================
+
+>>> Llama-2-7B End-to-End (Correctness + Latency): OK (123.7s)
+
+======================================================================
+FINAL SUMMARY
+======================================================================
+  7B Model Test                  PASS
+======================================================================
+
+====================================
+CPU Time used: 00:00:10
+CPU Percent: 8%
+Memory usage: 602160kb
+Approx Power usage: 0.0
+Walltime usage: 00:03:50
+
+====================================

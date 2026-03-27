@@ -1,0 +1,64 @@
+=== Environment ===
+Host: cx3-20-1
+NVIDIA L40S, 46068 MiB
+PyTorch: 2.7.1+cu118
+===================
+Device: NVIDIA L40S
+PyTorch: 2.7.1+cu118
+
+======================================================================
+TEST: Module Pass on Tiny Llama (2 layers, random weights)
+======================================================================
+  Model: 1,692,928 params, 2 layers
+  Ref top-5: [645, 175, 337, 522, 579]
+  Fused: 2 layers — ['model.layers.0', 'model.layers.1']
+  Max abs err: 3.58e-07  PASS
+  Top-5 match: PASS
+    ref:   [645, 175, 337, 522, 579]
+    fused: [645, 175, 337, 522, 579]
+  Overall: PASS
+
+======================================================================
+TEST: Module Pass — Casting Modes
+======================================================================
+  mode=llama   fused=1  max_err=1.49e-07  PASS
+  mode=gemma   fused=1  max_err=2.09e-07  PASS
+  mode=none    fused=1  max_err=1.79e-07  PASS
+
+  Overall: PASS
+
+======================================================================
+TEST: Module Pass on Llama-2-7B
+======================================================================
+  Loaded: 6.7B params
+  GPU memory: 12.6 GB
+  Fused: 32 layers
+
+  CORRECTNESS:
+    Max abs err:       7.8125e-02
+    Mean abs err:      2.9793e-03
+    Logit range:       48.14
+    Relative error:    0.001623  PASS
+    Cosine similarity: 1.000000  PASS
+    Top-5 match:       PASS
+      ref:   [304, 29889, 29892, 29871, 338]
+      fused: [304, 29889, 29892, 29871, 338]
+    Overall:           PASS
+
+  LATENCY:
+    Unfused: 24.08 ms
+    Fused:   23.36 ms
+    Saving:  +0.72 ms (1.031x)
+
+======================================================================
+MODULE PASS: ALL TESTS PASSED
+======================================================================
+
+====================================
+CPU Time used: 00:00:06
+CPU Percent: 7%
+Memory usage: 398316kb
+Approx Power usage: 0.0
+Walltime usage: 00:02:53
+
+====================================

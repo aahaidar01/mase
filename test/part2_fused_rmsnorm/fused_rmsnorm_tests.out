@@ -1,0 +1,171 @@
+=== Environment ===
+Host: cx3-20-2
+GPU: NVIDIA L40S, 46068 MiB
+PyTorch: 2.7.1+cu118, CUDA: True
+Triton: 3.3.1
+===================
+======================================================================
+FUSED ADD+RMSNORM: FULL TEST SUITE
+======================================================================
+Device: NVIDIA L40S
+PyTorch: 2.7.1+cu118
+CUDA available: True
+GPU memory: 44.4 GB
+Triton: 3.3.1
+
+######################################################################
+# RUNNING: Kernel Correctness + Latency Benchmark
+# File: test_fused_add_rmsnorm.py
+######################################################################
+
+
+Device: NVIDIA L40S
+PyTorch: 2.7.1+cu118
+Triton:  3.3.1
+
+======================================================================
+TEST: Forward Correctness
+======================================================================
+
+  Result: 144/144 PASSED
+
+======================================================================
+TEST: Backward Correctness
+======================================================================
+
+  Result: 36/36 PASSED
+
+======================================================================
+TEST: nn.Module Wrapper (FusedAddRMSNormModule)
+======================================================================
+  Module repr: FusedAddRMSNormModule(hidden_size=512, eps=1e-06, offset=0.0, casting_mode='llama')
+  Output shapes: normed=torch.Size([2, 16, 512]), residual=torch.Size([2, 16, 512])
+  Weight grad norm: 123.6044
+
+  Result: PASSED
+
+======================================================================
+BENCHMARK: Latency (Fused Triton vs Unfused PyTorch)
+======================================================================
+
+  Config               Method       Unfused (us)   Fused (us)  Speedup
+  --------------------------------------------------------------------
+  1x1x4096   bf16      CUDA evt           76.8         81.0     0.95x
+                       Wall-clk           62.1         65.6     0.95x
+  8x128x4096 bf16      CUDA evt           77.6         81.0     0.96x
+                       Wall-clk           63.2         65.3     0.97x
+  4x512x4096 bf16      CUDA evt          202.0         81.0     2.49x
+                       Wall-clk          201.8         65.7     3.07x
+  2x128x8192 bf16      CUDA evt           77.4         81.3     0.95x
+                       Wall-clk           63.1         65.4     0.97x
+  1x1x4096   fp32      CUDA evt           59.9         80.3     0.75x
+                       Wall-clk           47.6         65.0     0.73x
+  4x128x4096 fp32      CUDA evt           60.1         80.4     0.75x
+                       Wall-clk           48.3         65.3     0.74x
+  2x16x4096  fp16      CUDA evt           76.9         80.5     0.95x
+                       Wall-clk           63.2         65.2     0.97x
+
+======================================================================
+BENCHMARK: Peak GPU Memory
+======================================================================
+
+  Config               Unfused (MB)   Fused (MB)   Saving
+  -------------------------------------------------------
+  4x512x4096 bf16            80.0         32.0     60.0%
+  8x128x4096 bf16            40.0         16.0     60.0%
+  2x128x8192 bf16            20.0          8.0     60.0%
+
+======================================================================
+ALL TESTS PASSED
+======================================================================
+
+>>> Kernel Correctness + Latency Benchmark: OK (19.7s)
+
+######################################################################
+# RUNNING: Memory Benchmark (Fused vs Unfused)
+# File: benchmark_memory.py
+######################################################################
+
+======================================================================
+MEMORY BENCHMARK: Fused vs Unfused (forward + backward)
+======================================================================
+
+Config                                 Unfused      Fused      Saved  Reduction
+---------------------------------------------------------------------------
+(1,64,4096) Llama-7B single token batch      8.5MB      5.5MB     +3.0MB     35.2%
+(4,128,4096) Llama-7B small batch          68.0MB     44.0MB    +24.0MB     35.3%
+(8,256,4096) Llama-7B medium batch        272.0MB    240.0MB    +32.0MB     11.8%
+(16,512,4096) Llama-7B large batch        1088.1MB    812.1MB   +276.0MB     25.4%
+(1,64,8192) Llama-70B hidden dim          17.0MB     11.0MB     +6.0MB     35.2%
+(4,256,8192) Llama-70B batch              272.1MB    240.1MB    +32.0MB     11.8%
+
+Average memory reduction: 25.8%
+
+Key insight: Fusion eliminates storing the intermediate residual
+tensor separately in memory — one fewer (B,T,D) allocation per site.
+
+>>> Memory Benchmark (Fused vs Unfused): OK (10.1s)
+
+######################################################################
+# RUNNING: 3-Way Benchmark (Ours vs Liger vs PyTorch)
+# File: benchmark_3way.py
+######################################################################
+
+==========================================================================================
+3-WAY BENCHMARK: PyTorch Unfused vs Our Kernel vs Liger-Kernel
+==========================================================================================
+
+  Config             Method        Unfused       Ours      Liger  Ours spd Liger spd
+  --------------------------------------------------------------------------------
+  1x1x4096 bf16      CUDA evt       61.7us     66.4us     87.8us     0.93x     0.70x
+                     Wall-clk       61.4us     66.7us     87.2us     0.92x     0.70x
+  2x16x4096 bf16     CUDA evt       62.1us     66.7us     87.1us     0.93x     0.71x
+                     Wall-clk       62.3us     66.4us     87.2us     0.94x     0.71x
+  8x128x4096 bf16    CUDA evt       62.2us     67.1us     87.3us     0.93x     0.71x
+                     Wall-clk       62.3us     66.9us     87.1us     0.93x     0.72x
+  4x512x4096 bf16    CUDA evt      160.0us     66.7us     87.4us     2.40x     1.83x
+                     Wall-clk      160.1us     66.6us     87.4us     2.40x     1.83x
+  2x128x8192 bf16    CUDA evt       62.3us     66.6us     87.6us     0.93x     0.71x
+                     Wall-clk       62.5us     66.1us     87.7us     0.95x     0.71x
+  1x1x4096 fp32      CUDA evt       47.3us     67.0us     88.1us     0.71x     0.54x
+                     Wall-clk       47.0us     66.2us     87.6us     0.71x     0.54x
+  4x128x4096 fp32    CUDA evt       47.9us     66.1us     87.6us     0.72x     0.55x
+                     Wall-clk       47.7us     66.2us     87.5us     0.72x     0.55x
+  2x16x4096 fp16     CUDA evt       62.1us     66.4us     88.0us     0.93x     0.71x
+                     Wall-clk       62.2us     66.3us     87.7us     0.94x     0.71x
+
+==========================================================================================
+CORRECTNESS: Our Kernel vs Liger-Kernel
+==========================================================================================
+
+  dtype=bf16, shape=(4,64,4096)
+    Liger detected mode:   RMSNorm only (no residual add)
+    Ours vs PyTorch ref:   max_err=0.00e+00  PASS
+    Liger vs its ref:      max_err=6.25e-02  FAIL
+    Note: Liger pip version does RMSNorm only; our kernel fuses add+RMSNorm.
+
+  dtype=fp32, shape=(4,64,4096)
+    Liger detected mode:   RMSNorm only (no residual add)
+    Ours vs PyTorch ref:   max_err=1.91e-06  PASS
+    Liger vs its ref:      max_err=1.43e-06  PASS
+    Note: Liger pip version does RMSNorm only; our kernel fuses add+RMSNorm.
+
+
+>>> 3-Way Benchmark (Ours vs Liger vs PyTorch): OK (47.1s)
+
+======================================================================
+FINAL SUMMARY
+======================================================================
+  Kernel Tests                   PASS
+  Memory Benchmark               PASS
+  3-Way Benchmark                PASS
+======================================================================
+
+====================================
+CPU Time used: 00:00:10
+CPU Percent: 12%
+Memory usage: 832964kb
+Approx Power usage: 0.0
+Walltime usage: 00:02:33
+
+====================================

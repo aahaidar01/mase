@@ -1,0 +1,142 @@
+=== Environment ===
+Host: cx3-20-1
+GPU: NVIDIA L40S, 46068 MiB
+PyTorch: 2.7.1+cu118, CUDA: True
+Triton: 3.3.1
+===================
+
+######################################################################
+# Kernel Latency + Memory Benchmark
+######################################################################
+
+======================================================================
+BENCHMARK: Latency (Fused Triton vs Unfused PyTorch)
+======================================================================
+
+  Config               Method       Unfused (us)   Fused (us)  Speedup
+  --------------------------------------------------------------------
+  1x1x4096     bf16    CUDA evt           75.6         82.0     0.92x
+                       Wall-clk           62.1         66.6     0.93x
+  1x32x4096    bf16    CUDA evt           76.2         81.9     0.93x
+                       Wall-clk           62.5         66.5     0.94x
+  1x128x4096   bf16    CUDA evt           75.9         82.0     0.93x
+                       Wall-clk           62.5         66.4     0.94x
+  2x128x4096   bf16    CUDA evt           76.2         81.8     0.93x
+                       Wall-clk           62.2         66.5     0.94x
+  4x128x4096   bf16    CUDA evt           76.0         81.3     0.93x
+                       Wall-clk           62.3         66.4     0.94x
+  4x256x4096   bf16    CUDA evt           77.7         81.3     0.96x
+                       Wall-clk           62.7         66.2     0.95x
+  4x512x4096   bf16    CUDA evt          195.2         81.5     2.39x
+                       Wall-clk          195.3         66.4     2.94x
+  8x256x4096   bf16    CUDA evt          194.5         81.3     2.39x
+                       Wall-clk          195.0         66.3     2.94x
+  8x512x4096   bf16    CUDA evt          536.9        183.4     2.93x
+                       Wall-clk          537.8        183.0     2.94x
+  16x256x4096  bf16    CUDA evt          542.6        185.0     2.93x
+                       Wall-clk          542.7        185.3     2.93x
+  4x256x8192   bf16    CUDA evt          194.2         81.5     2.38x
+                       Wall-clk          194.5         66.3     2.94x
+  8x256x8192   bf16    CUDA evt          522.0        187.4     2.79x
+                       Wall-clk          523.1        189.4     2.76x
+  4x256x4096   fp16    CUDA evt           76.9         81.7     0.94x
+                       Wall-clk           62.8         66.5     0.95x
+  8x512x4096   fp16    CUDA evt          536.8        183.6     2.92x
+                       Wall-clk          537.9        182.9     2.94x
+  4x256x4096   fp32    CUDA evt           64.1         81.6     0.79x
+                       Wall-clk           52.3         66.2     0.79x
+
+======================================================================
+BENCHMARK: Peak GPU Memory
+======================================================================
+
+  Config               Unfused (MB)   Fused (MB)   Saving
+  -------------------------------------------------------
+  4x512x4096 bf16            80.0         32.0     60.0%
+  8x128x4096 bf16            40.0         16.0     60.0%
+  2x128x8192 bf16            20.0          8.0     60.0%
+
+######################################################################
+# 3-Way Benchmark (extended configs)
+######################################################################
+==========================================================================================
+3-WAY BENCHMARK: PyTorch Unfused vs Our Kernel vs Liger-Kernel
+==========================================================================================
+
+  Config             Method        Unfused       Ours      Liger  Ours spd Liger spd
+  --------------------------------------------------------------------------------
+  1x1x4096 bf16      CUDA evt       63.5us     66.4us     87.4us     0.96x     0.73x
+                     Wall-clk       63.1us     66.5us     87.5us     0.95x     0.72x
+  1x32x4096 bf16     CUDA evt       64.2us     66.4us     87.3us     0.97x     0.73x
+                     Wall-clk       63.9us     66.6us     87.1us     0.96x     0.73x
+  2x128x4096 bf16    CUDA evt       63.9us     66.7us     87.8us     0.96x     0.73x
+                     Wall-clk       63.7us     66.4us     87.8us     0.96x     0.73x
+  4x128x4096 bf16    CUDA evt       63.8us     66.7us     87.6us     0.96x     0.73x
+                     Wall-clk       64.1us     66.9us     87.7us     0.96x     0.73x
+  4x256x4096 bf16    CUDA evt       64.5us     66.2us     88.4us     0.97x     0.73x
+                     Wall-clk       63.8us     66.3us     88.4us     0.96x     0.72x
+  4x512x4096 bf16    CUDA evt      160.3us     66.9us     88.0us     2.39x     1.82x
+                     Wall-clk      160.4us     66.8us     88.3us     2.40x     1.82x
+  8x256x4096 bf16    CUDA evt      159.2us     66.6us     88.0us     2.39x     1.81x
+                     Wall-clk      159.2us     66.6us     87.9us     2.39x     1.81x
+  8x512x4096 bf16    CUDA evt      548.9us    184.1us    260.9us     2.98x     2.10x
+                     Wall-clk      548.9us    184.3us    261.4us     2.98x     2.10x
+  16x256x4096 bf16   CUDA evt      543.3us    183.2us    257.2us     2.97x     2.11x
+                     Wall-clk      543.3us    182.9us    257.0us     2.97x     2.11x
+  4x256x8192 bf16    CUDA evt      162.1us     66.8us     88.6us     2.43x     1.83x
+                     Wall-clk      162.1us     66.6us     88.2us     2.44x     1.84x
+  8x256x8192 bf16    CUDA evt      534.5us    188.6us    261.3us     2.83x     2.05x
+                     Wall-clk      534.6us    189.0us    261.2us     2.83x     2.05x
+  4x256x4096 fp16    CUDA evt       64.7us     66.4us     88.1us     0.97x     0.73x
+                     Wall-clk       64.8us     66.3us     87.1us     0.98x     0.74x
+  8x512x4096 fp16    CUDA evt      548.7us    184.4us    260.9us     2.98x     2.10x
+                     Wall-clk      549.1us    184.2us    261.3us     2.98x     2.10x
+  4x256x4096 fp32    CUDA evt       52.6us     66.2us     87.7us     0.79x     0.60x
+                     Wall-clk       52.4us     66.0us     87.6us     0.79x     0.60x
+
+==========================================================================================
+CORRECTNESS: Our Kernel vs Liger-Kernel
+==========================================================================================
+
+  dtype=bf16, shape=(4,64,4096)
+    Liger detected mode:   RMSNorm only (no residual add)
+    Ours vs PyTorch ref:   max_err=0.00e+00  PASS
+    Liger vs its ref:      max_err=6.25e-02  FAIL
+    Note: Liger pip version does RMSNorm only; our kernel fuses add+RMSNorm.
+
+  dtype=fp32, shape=(4,64,4096)
+    Liger detected mode:   RMSNorm only (no residual add)
+    Ours vs PyTorch ref:   max_err=1.91e-06  PASS
+    Liger vs its ref:      max_err=1.91e-06  PASS
+    Note: Liger pip version does RMSNorm only; our kernel fuses add+RMSNorm.
+
+
+######################################################################
+# Memory Benchmark (fwd+bwd)
+######################################################################
+======================================================================
+MEMORY BENCHMARK: Fused vs Unfused (forward + backward)
+======================================================================
+
+Config                                 Unfused      Fused      Saved  Reduction
+---------------------------------------------------------------------------
+(1,64,4096) Llama-7B single token batch      8.5MB      5.5MB     +3.0MB     35.2%
+(4,128,4096) Llama-7B small batch          68.0MB     44.0MB    +24.0MB     35.3%
+(8,256,4096) Llama-7B medium batch        272.0MB    240.0MB    +32.0MB     11.8%
+(16,512,4096) Llama-7B large batch        1088.1MB    812.1MB   +276.0MB     25.4%
+(1,64,8192) Llama-70B hidden dim          17.0MB     11.0MB     +6.0MB     35.2%
+(4,256,8192) Llama-70B batch              272.1MB    240.1MB    +32.0MB     11.8%
+
+Average memory reduction: 25.8%
+
+Key insight: Fusion eliminates storing the intermediate residual
+tensor separately in memory — one fewer (B,T,D) allocation per site.
+
+====================================
+CPU Time used: 00:00:16
+CPU Percent: 16%
+Memory usage: 596084kb
+Approx Power usage: 0.0
+Walltime usage: 00:01:59
+
+====================================
